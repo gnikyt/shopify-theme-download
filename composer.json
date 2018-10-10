@@ -1,0 +1,12 @@
+{
+    "require": {
+        "ohmybrew/basic-shopify-api": "^3.0",
+        "symfony/console": "^4.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "OhMyBrew\\Command\\": "src/Command"
+        }
+    },
+    "config": { "bin-dir": "bin" }
+}

@@ -1,0 +1,9 @@
+#!/usr/bin/env php
+<?php
+$buildRoot = __DIR__.'/../';
+$phar = new Phar("{$buildRoot}build/theme-download.phar", 0, 'theme-download.phar');
+
+$include = '/^(?=(.*src|.*bin|.*vendor))(.*)$/i';
+
+$phar->buildFromDirectory($buildRoot, $include);
+$phar->setStub("#!/usr/bin/env php\n" . $phar->createDefaultStub('bin/theme-download'));
