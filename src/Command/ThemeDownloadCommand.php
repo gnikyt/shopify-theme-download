@@ -83,7 +83,7 @@ class ThemeDownloadCommand extends Command
         // Save the details of the shop, output directory, theme ID, API credentials
         $this->shop = "{$input->getArgument('shop')}.myshopify.com";
         $this->theme = $input->getArgument('theme');
-        $this->outputDir = "{$this->shop}-{$this->theme}";
+        $this->outputDir = getcwd()."/{$this->shop}-{$this->theme}";
         $apiCombo = explode(':', $input->getArgument('api'));
 
         // Setup the API instance
@@ -121,7 +121,7 @@ class ThemeDownloadCommand extends Command
         }
 
         // All done, package it up into a tar archive using Phar
-        $archiveName = "{$this->outputDir}.tar";
+        $archiveName = "{$this->shop}-{$this->theme}.tar";
         $archive = new PharData($archiveName);
         $archive->buildFromDirectory($this->outputDir);
 

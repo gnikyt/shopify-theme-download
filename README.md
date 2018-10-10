@@ -29,5 +29,5 @@ Total assets: 46
 [2/46] 0% | assets/favicon.svg | Downloaded
 [3/46] 1% | assets/image-page-legal.jpg | Downloaded
 # ...
-Completed download, demo-shop.myshopify.com-32480591923.tar is available
+Completed download, demo-shop-32480591923.tar is available
 ```
