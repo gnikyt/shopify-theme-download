@@ -9,15 +9,25 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputOption;
 
 class ThemeDownloadCommand extends Command
 {
     /**
-     * The cycle, no more than 2 calls per second.
+     * The cycle, no more than 2 calls per second as default
+     * In milliseconds
      *
      * @var int
      */ 
-    const CYCLE = 0.5;
+    protected $cycle;
+
+    /**
+     * Buffer for the cycle.
+     * In milliseconds.
+     *
+     * @var int
+     */
+    protected $cycleBuffer;
 
     /**
      * The API instance of the shop.
@@ -67,6 +77,8 @@ class ThemeDownloadCommand extends Command
             ->addArgument('shop', InputArgument::REQUIRED, 'The shop domain name')
             ->addArgument('api', InputArgument::REQUIRED, 'The API key:password combo')
             ->addArgument('theme', InputArgument::REQUIRED, 'The theme\'s ID')
+            ->addOption('cycle', null, InputOption::VALUE_OPTIONAL, 'Cycle in milliseconds, default: one call per 500ms (result in 2 call per second)', 0.5 * 1000)
+            ->addOption('cycle-buffer', null, InputOption::VALUE_OPTIONAL, 'Cycle buffer in milliseconds, default: 100ms per call (appended to cycle)', 0.1 * 1000)
         ;
     }
 
@@ -80,6 +92,10 @@ class ThemeDownloadCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output) : void
     {
+        // Set cycle
+        $this->cycle = (float) $input->getOption('cycle');
+        $this->cycleBuffer = (float) $input->getOption('cycle-buffer');
+
         // Save the details of the shop, output directory, theme ID, API credentials
         $this->shop = "{$input->getArgument('shop')}.myshopify.com";
         $this->theme = $input->getArgument('theme');
@@ -100,7 +116,7 @@ class ThemeDownloadCommand extends Command
         $totalAssets = count($assets);
         $output->writeln("<info>Total assets: {$totalAssets}</info>");
 
-        $this->timestamp = time();
+        $this->timestamp = microtime(true);
         foreach ($assets as $index => $assetData) {
             // Calculate the percentage complete
             $assetName = $assetData->key;
@@ -189,30 +205,30 @@ class ThemeDownloadCommand extends Command
      */
     protected function checkCycle(OutputInterface $output) : void
     {
-        // Calculate
-        $duration = time() - $this->timestamp;
-        $waitTime = ceil(self::CYCLE - $duration);
+        // Calculate in milliseconds the duration the API call took
+        $duration = round(microtime(true) - $this->timestamp, 3) * 1000;
+        $waitTime = ($this->cycle - $duration) + $this->cycleBuffer;
         $sleep = false;
 
         if ($waitTime > 0) {
-            // We need to sleep based on cycle
+            // We need to sleep based on cycle, we're over the 1 call per X seconds rule
             $sleep = true;
         } elseif ($this->api->getApiCalls('rest', 'left') <= 5) {
             // We need to sleep based on what's left in the API bucket
             $sleep = true;
-            $waitTime = 10;
+            $waitTime = 10 * 1000;
         }
 
         if ($sleep) {
             if ($output->isVerbose()) {
-                $output->writeln("<info>Cycle limit hit, sleeping for {$waitTime} seconds...</info>");
+                $output->writeln('<info>Cycle limit hit, sleeping for '.($waitTime / 1000).' seconds...</info>');
             }
 
-            // Do the sleep for X seconds
-            sleep($waitTime);
+            // Do the sleep for X mircoseconds (convert from milliseconds)
+            usleep($waitTime * 1000);
         }
 
         // Reset the timestamp
-        $this->timestamp = time();
+        $this->timestamp = microtime(true);
     }
 }
