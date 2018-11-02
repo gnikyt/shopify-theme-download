@@ -14,22 +14,6 @@ use Symfony\Component\Console\Input\InputOption;
 class ThemeDownloadCommand extends Command
 {
     /**
-     * The cycle, no more than 2 calls per second as default
-     * In milliseconds
-     *
-     * @var int
-     */ 
-    protected $cycle;
-
-    /**
-     * Buffer for the cycle.
-     * In milliseconds.
-     *
-     * @var int
-     */
-    protected $cycleBuffer;
-
-    /**
      * The API instance of the shop.
      *
      * @var OhMyBrew\BasicShopifyAPI
@@ -56,13 +40,6 @@ class ThemeDownloadCommand extends Command
      * @var string
      */ 
     protected $outputDir;
-
-    /**
-     * The current timestamp of download.
-     *
-     * @var int
-     */ 
-    protected $timestamp;
 
     /**
      * Constructor for console command to set it up.
@@ -92,10 +69,6 @@ class ThemeDownloadCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output) : void
     {
-        // Set cycle
-        $this->cycle = (float) $input->getOption('cycle');
-        $this->cycleBuffer = (float) $input->getOption('cycle-buffer');
-
         // Save the details of the shop, output directory, theme ID, API credentials
         $this->shop = "{$input->getArgument('shop')}.myshopify.com";
         $this->theme = $input->getArgument('theme');
@@ -107,6 +80,7 @@ class ThemeDownloadCommand extends Command
         $this->api->setShop($this->shop);
         $this->api->setApiKey($apiCombo[0]);
         $this->api->setApiPassword($apiCombo[1]);
+        $this->api->enableRateLimiting((int) $input->getOption('cycle'), (int) $input->getOption('cycle-buffer'));
 
         // Setup the output directory
         $this->setupOutputDir($output);
@@ -116,7 +90,6 @@ class ThemeDownloadCommand extends Command
         $totalAssets = count($assets);
         $output->writeln("<info>Total assets: {$totalAssets}</info>");
 
-        $this->timestamp = microtime(true);
         foreach ($assets as $index => $assetData) {
             // Calculate the percentage complete
             $assetName = $assetData->key;
@@ -128,8 +101,7 @@ class ThemeDownloadCommand extends Command
             $section = $output->section();
             $section->writeln(sprintf($message, 'comment', 'Downloading...', 'comment'));
 
-            // Check the cycle and download the asset
-            $this->checkCycle($output);
+            // Download the asset
             $this->downloadAsset($assetName);
 
             // Completed download message
@@ -192,43 +164,5 @@ class ThemeDownloadCommand extends Command
         );
 
         return $asset;
-    }
-
-    /**
-     * Ensures we don't go over the 2 calls per second limit, or
-     * the actual API limit by checking what's left and sleeping
-     * if required to free up bucket space.
-     *
-     * @param OutputInterface $output The output object.
-     *
-     * @return void
-     */
-    protected function checkCycle(OutputInterface $output) : void
-    {
-        // Calculate in milliseconds the duration the API call took
-        $duration = round(microtime(true) - $this->timestamp, 3) * 1000;
-        $waitTime = ($this->cycle - $duration) + $this->cycleBuffer;
-        $sleep = false;
-
-        if ($waitTime > 0) {
-            // We need to sleep based on cycle, we're over the 1 call per X seconds rule
-            $sleep = true;
-        } elseif ($this->api->getApiCalls('rest', 'left') <= 5) {
-            // We need to sleep based on what's left in the API bucket
-            $sleep = true;
-            $waitTime = 10 * 1000;
-        }
-
-        if ($sleep) {
-            if ($output->isVerbose()) {
-                $output->writeln('<info>Cycle limit hit, sleeping for '.($waitTime / 1000).' seconds...</info>');
-            }
-
-            // Do the sleep for X mircoseconds (convert from milliseconds)
-            usleep($waitTime * 1000);
-        }
-
-        // Reset the timestamp
-        $this->timestamp = microtime(true);
     }
 }

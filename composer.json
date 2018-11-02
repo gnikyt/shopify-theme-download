@@ -1,6 +1,6 @@
 {
     "require": {
-        "ohmybrew/basic-shopify-api": "^3.0",
+        "ohmybrew/basic-shopify-api": "^4.0",
         "symfony/console": "^4.1"
     },
     "autoload": {
